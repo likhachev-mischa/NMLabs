@@ -85,7 +85,23 @@ namespace NMLab2
 
 		public void FillRandom(Random random)
 		{
-			
+			for (int i = 0; i < N; ++i)
+			{
+				int j;
+				for (j = 0; j < L - i - 1 && i < L; ++j)
+				{
+					Matrix[i, j] = 0.0f;
+				}
+
+				for (; j < L; ++j)
+				{
+					Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
+					while (j == L - 1 && Matrix[i, j] == 0.0f)
+					{
+						Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
+					}
+				}
+			}
 		}
 
 		public float[] Multiply(float[] arr)
@@ -128,6 +144,8 @@ namespace NMLab2
 				{
 					arrLowerBound = 0;
 				}
+
+				Console.WriteLine();
 			}
 
 			return result;
