@@ -1,24 +1,23 @@
 ﻿using System.Globalization;
-using System.Runtime.InteropServices;
 
 namespace NMLab2
 {
 	public class LineMatrix
 	{
-		public int N { get; }
+		public int N { get; private set; }
 		public int L { get; private set; }
 
-		public float[,] Matrix { get; set; }
+		public double[,] Matrix { get; set; }
 
-		public float[] F { get; set; }
+		public double[] F { get; set; }
 
 		public LineMatrix(int n, int l)
 		{
 			N = n;
 			L = l;
 
-			Matrix = new float[N, L];
-			F = new float[N];
+			Matrix = new double[N, L];
+			F = new double[N];
 		}
 
 		public LineMatrix(string filePath)
@@ -34,8 +33,8 @@ namespace NMLab2
 			string[] tokens = line.Split(' ');
 			N = int.Parse(tokens[0]);
 			L = int.Parse(tokens[1]);
-			Matrix = new float[N, L];
-			F = new float[N];
+			Matrix = new double[N, L];
+			F = new double[N];
 
 			int level = 0;
 			//read matrix
@@ -60,7 +59,7 @@ namespace NMLab2
 				//parse the rest
 				for (int j = 0; i < L; ++i, ++j)
 				{
-					Matrix[level, i] = float.Parse(tokens[j], CultureInfo.InvariantCulture);
+					Matrix[level, i] = double.Parse(tokens[j], CultureInfo.InvariantCulture);
 				}
 
 				++level;
@@ -77,13 +76,13 @@ namespace NMLab2
 			tokens = line.Split(' ');
 			for (int i = 0; i < N; ++i)
 			{
-				F[i] = float.Parse(tokens[i], CultureInfo.InvariantCulture);
+				F[i] = double.Parse(tokens[i], CultureInfo.InvariantCulture);
 			}
 
 			reader.Close();
 		}
 
-		public void FillRandom(Random random)
+		public void GenerateRandom(Random random)
 		{
 			for (int i = 0; i < N; ++i)
 			{
@@ -93,69 +92,143 @@ namespace NMLab2
 					Matrix[i, j] = 0.0f;
 				}
 
+				double sum = 0.0f;
 				for (; j < L - 1; ++j)
 				{
-					Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
-				}
-
-				float mult = random.NextSingle();
-				Matrix[i, L - 1] = 10 * MathF.Max(mult, 0.654f);
-			}
-		}
-
-		public void GenerateWellConditioned(Random random)
-		{
-			for (int i = 0; i < N; ++i)
-			{
-				int j;
-				for (j = 0; j < L - i - 1 && i < L; ++j)
-				{
-					Matrix[i, j] = 0.0f;
-				}
-
-				for (; j < L - 1; ++j)
-				{
-					Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
-				}
-
-				float mult = random.NextSingle();
-				Matrix[i, L - 1] = 20 * MathF.Max(mult, 0.8999f);
-			}
-		}
-
-		public void GenerateIllConditioned(Random random)
-		{
-			float[,] Lmat = new float[N, N];
-			float[,] Umat = new float[N, N];
-
-
-			for (int i = 0; i < N; ++i)
-			{
-				int lowerBound = 0;
-				int upperBound = (int)MathF.Ceiling(L / 2.0f);
-				for (int j = lowerBound; ;)
-				{
-					Lmat[i, j] = random.NextSingle() * 0.000123f;
-
-					if (i != j)
-						Umat[i, j] = random.NextSingle() * 0.000123f;
-
-					if (i >= L)
+					while (Math.Abs(Matrix[i, j]) <= 1.0f)
 					{
-						++j;
-						++lowerBound;
-						++upperBound;
+						Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
 					}
+
+					//	sum += Matrix[i, j] * Matrix[i, j];
+				}
+
+				Matrix[i, L - 1] = random.NextDouble() * N * 100000;
+				//while (Matrix[i, L - 1] <= sum)
+				//{
+				//	Matrix[i, L - 1] = random.NextSingle() *
+				//	                   random.NextInt64((int)(sum * 0.5), (int)Math.Max(sum * 1.5, 10));
+				//}
+			}
+
+			/*
+			bool status = false;
+			int failedLine;
+			double retSum;
+			CalculateTmatrix(out status, out failedLine, out retSum);
+			while (status == false)
+			{
+				while (Matrix[failedLine, L - 1] <= retSum)
+				{
+					Matrix[failedLine, L - 1] = random.NextSingle() *
+					                            random.NextInt64((int)(retSum * 0.5), (int)Math.Max(retSum * 1.5, 10));
+				}
+
+				CalculateTmatrix(out status, out failedLine, out retSum);
+			}
+		*/
+		}
+
+		public void GenerateIllConditioned(Random random, int k)
+		{
+			double[,] Lmat = new double[N, N];
+			double[,] Umat = new double[N, N];
+
+			int lowerBound;
+			int upperBound = L;
+			for (int i = 0; i < N; ++i)
+			{
+				lowerBound = i;
+				for (int j = lowerBound, j2 = 0; j2 < upperBound - lowerBound && j < N; ++j2, ++j)
+				{
+					Umat[i, j] = random.NextSingle() * random.NextInt64(-10, 10) * Math.Pow(10, -k);
+				}
+
+				Umat[i, i] = Math.Abs(random.NextSingle() * 10000 * Math.Pow(10, -k + 1) * N);
+
+				++upperBound;
+			}
+
+			for (int i = 0; i < N; ++i)
+			{
+				lowerBound = Math.Max(0, i - L + 1);
+				upperBound = i;
+				for (int j = lowerBound, j2 = 0; j2 <= upperBound - lowerBound && j < N; ++j2, ++j)
+				{
+					Lmat[i, j] = random.NextSingle() * random.NextInt64(-10, 10) * Math.Pow(10, -k);
+				}
+
+				Lmat[i, i] =
+					Math.Abs(random.NextSingle() * 10000 *
+					         Math.Pow(10, -k + 1) * N);
+				++lowerBound;
+			}
+
+			//	Console.WriteLine("L MATR");
+			//	Print(Lmat);
+			//	Console.WriteLine("U MATR");
+			//	Print(Umat);
+
+			var mult = Multiply(Lmat, Umat);
+			//	Console.WriteLine("MULTIPLICATION RES:");
+			//Print(mult);
+
+			for (int j = 0; j < L; ++j)
+			{
+				var diag = ExtractDiagonal(mult, j);
+
+				for (int i = 0; i < N; ++i)
+				{
+					Matrix[i, L - j - 1] = diag[i];
 				}
 			}
 
-			Console.WriteLine(" U MATR");
-			Print(Umat);
-			Console.WriteLine(" L MATR");
-			Print(Lmat);
+			//Print();
 		}
 
-		public float[] Multiply(float[] arr)
+		public double[] ExtractDiagonal(double[,] matrix, int num)
+		{
+			if (matrix.GetLength(0) != matrix.GetLength(1) ||
+			    matrix.GetLength(0) != N)
+			{
+				throw new Exception("Incorrect matrix size");
+			}
+
+			if (num >= N || num < 0)
+			{
+				throw new Exception("Incorrect num");
+			}
+
+			double[] diag = new double[N];
+			for (int i = 0; i < num; ++i)
+			{
+				diag[i] = 0;
+			}
+
+			for (int i = num; i < N; ++i)
+			{
+				diag[i] = matrix[i, i - num];
+			}
+
+			return diag;
+		}
+
+		public double[] SolveFull()
+		{
+			LineMatrix tMatrix = CalculateTmatrix(out bool status, out _, out _);
+
+			if (!status)
+			{
+				throw new Exception("Incorrect matrix generation");
+			}
+
+			tMatrix.F = F;
+			double[] result = tMatrix.Solve();
+			tMatrix.F = result;
+			return tMatrix.SolveTransposed();
+		}
+
+		public double[] Multiply(double[] arr)
 		{
 			if (arr.Length != N)
 			{
@@ -165,44 +238,42 @@ namespace NMLab2
 			int lowerBound = L - 1;
 
 			int arrLowerBound = 0;
-			int arrUpperBound = L - lowerBound;
 
-			float[] result = new float[N];
+			double[] result = new double[N];
 			for (int i = 0; i < N; ++i)
 			{
-				Console.WriteLine($"LINE {i}");
+				//	Console.WriteLine($"LINE {i}");
 				//this line
 				int j2 = arrLowerBound;
 				for (int j = lowerBound; j < L; ++j, ++j2)
 				{
-					Console.Write($"{Matrix[i, j]} mult by {arr[j2]}\t");
+					//Console.Write($"{Matrix[i, j]} mult by {arr[j2]}\t");
 					result[i] += Matrix[i, j] * arr[j2];
 				}
 
 				//symmetrical line
 				for (int j = L - 2, i2 = i + 1; j >= 0 && i2 < N && j2 < N; --j, ++i2, ++j2)
 				{
-					Console.Write($"{Matrix[i2, j]} mult by {arr[j2]}\t");
+					//Console.Write($"{Matrix[i2, j]} mult by {arr[j2]}\t");
 					result[i] += Matrix[i2, j] * arr[j2];
 				}
 
 
-				lowerBound = (int)MathF.Max(0, lowerBound - 1);
+				lowerBound = Math.Max(0, lowerBound - 1);
 
-				++arrUpperBound;
 				++arrLowerBound;
 				if (i < L - 1)
 				{
 					arrLowerBound = 0;
 				}
 
-				Console.WriteLine();
+				//Console.WriteLine();
 			}
 
 			return result;
 		}
 
-		public void Print(float[,] matrix)
+		public void Print(double[,] matrix)
 		{
 			int n = matrix.GetLength(0);
 			int l = matrix.GetLength(1);
@@ -211,7 +282,7 @@ namespace NMLab2
 			{
 				for (int j = 0; j < l; ++j)
 				{
-					Console.Write($"{matrix[i, j],15}");
+					Console.Write($"{matrix[i, j],30}");
 				}
 
 				Console.WriteLine();
@@ -225,7 +296,7 @@ namespace NMLab2
 			{
 				for (int j = 0; j < L; ++j)
 				{
-					Console.Write($"{Matrix[i, j],15}");
+					Console.Write($"{Matrix[i, j],30}");
 				}
 
 				Console.WriteLine();
@@ -234,18 +305,53 @@ namespace NMLab2
 			Console.WriteLine("\nF:");
 			for (int i = 0; i < N; ++i)
 			{
-				Console.Write(F[i] + " ");
+				Console.Write($"{F[i] + " ",15}");
 			}
 
 			Console.WriteLine();
 		}
 
-		public LineMatrix CalculateTmatrix()
+
+		private double[,] Multiply(double[,] l, double[,] u)
+		{
+			if (l.GetLength(0) != u.GetLength(0) ||
+			    l.GetLength(1) != u.GetLength(1) ||
+			    l.GetLength(1) != N)
+			{
+				throw new Exception("Incorrect matrix sizes");
+			}
+
+			double[,] result = new double[N, N];
+
+			for (int i = 0; i < N; ++i)
+			for (int j = 0; j < N; ++j)
+			{
+				double sum = 0.0f;
+				for (int k = 0; k < N; ++k)
+				{
+					sum += l[i, k] * u[k, j];
+				}
+
+				result[i, j] = sum;
+			}
+
+			return result;
+		}
+
+		private LineMatrix CalculateTmatrix(out bool status, out int failedLine, out double retSum)
 		{
 			LineMatrix tMatrix = new LineMatrix(N, L);
 
 			//first row 
-			float denom = MathF.Sqrt(Matrix[0, L - 1]);
+			double denom = Math.Sqrt(Matrix[0, L - 1]);
+			if (double.IsNaN(denom))
+			{
+				status = false;
+				failedLine = 0;
+				retSum = 0;
+				return new LineMatrix(N, L);
+			}
+
 			tMatrix.Matrix[0, L - 1] = denom;
 
 			int i = 1;
@@ -257,14 +363,24 @@ namespace NMLab2
 			//other rows
 			for (i = 1; i < N; ++i)
 			{
-				float sum = 0.0f;
+				double sum = 0.0f;
 				for (int j = 0; j < L - 1; ++j)
 				{
 					sum += tMatrix.Matrix[i, j] * tMatrix.Matrix[i, j];
 				}
 
-				tMatrix.Matrix[i, L - 1] = MathF.Sqrt(Matrix[i, L - 1] - sum);
-				float mainDiag = tMatrix.Matrix[i, L - 1];
+				double elem = Math.Sqrt(Matrix[i, L - 1] - sum);
+				if (double.IsNaN(elem))
+				{
+					status = false;
+					failedLine = i;
+					retSum = sum;
+					return new LineMatrix(N, L);
+				}
+
+				tMatrix.Matrix[i, L - 1] = elem;
+
+				double mainDiag = tMatrix.Matrix[i, L - 1];
 
 				int i2 = i + 1;
 				for (int j = L - 2; j >= 0 && i2 < N; --j, ++i2)
@@ -279,27 +395,22 @@ namespace NMLab2
 				}
 			}
 
+			status = true;
+			failedLine = -1;
+			retSum = 0;
 			return tMatrix;
 		}
 
-		public float[] SolveFull()
-		{
-			LineMatrix tMatrix = CalculateTmatrix();
-			tMatrix.F = F;
-			float[] result = tMatrix.Solve();
-			tMatrix.F = result;
-			return tMatrix.SolveTransposed();
-		}
 
-		public float[] Solve()
+		private double[] Solve()
 		{
-			float[] result = new float[N];
+			double[] result = new double[N];
 			result[0] = F[0] / Matrix[0, L - 1];
 
 			for (int i = 1; i < N; ++i)
 			{
-				float sum = 0.0f;
-				Console.WriteLine($"Line {i}");
+				double sum = 0.0f;
+				//Console.WriteLine($"Line {i}");
 				int j = 0;
 				int j2 = 0;
 
@@ -316,35 +427,35 @@ namespace NMLab2
 				for (; j < L - 1; ++j, ++j2)
 				{
 					sum += Matrix[i, j] * result[j2];
-					Console.WriteLine($"{Matrix[i, j]} multiply by {result[j2]}");
+					//Console.WriteLine($"{Matrix[i, j]} multiply by {result[j2]}");
 				}
 
 				result[i] = (F[i] - sum) / Matrix[i, L - 1];
-				Console.WriteLine($"Result: {result[i]}");
+				//Console.WriteLine($"Result: {result[i]}");
 			}
 
 			return result;
 		}
 
-		public float[] SolveTransposed()
+		private double[] SolveTransposed()
 		{
-			float[,] tempMat = Matrix;
+			double[,] tempMat = Matrix;
 			Matrix = GetTransposedMatrix();
-			float[] tempF = F;
+			double[] tempF = F;
 			F = F.Reverse().ToArray();
 
-			Print();
+			//Print();
 
-			float[] result = Solve();
+			double[] result = Solve();
 			Matrix = tempMat;
 			F = tempF;
 			return result.Reverse().ToArray();
 		}
 
-		public float[,] GetTransposedMatrix()
+		private double[,] GetTransposedMatrix()
 		{
-			float[,] transpMatr = new float[N, L];
-			float[] column = new float[N];
+			double[,] transpMatr = new double[N, L];
+			double[] column = new double[N];
 
 			for (int j = L - 1, step = 0; j >= 0; --j, ++step)
 			{
