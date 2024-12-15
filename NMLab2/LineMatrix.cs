@@ -6,7 +6,7 @@ namespace NMLab2
 	public class LineMatrix
 	{
 		public int N { get; }
-		public int L { get; }
+		public int L { get; private set; }
 
 		public float[,] Matrix { get; set; }
 
@@ -93,15 +93,66 @@ namespace NMLab2
 					Matrix[i, j] = 0.0f;
 				}
 
-				for (; j < L; ++j)
+				for (; j < L - 1; ++j)
 				{
 					Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
-					while (j == L - 1 && Matrix[i, j] == 0.0f)
+				}
+
+				float mult = random.NextSingle();
+				Matrix[i, L - 1] = 10 * MathF.Max(mult, 0.654f);
+			}
+		}
+
+		public void GenerateWellConditioned(Random random)
+		{
+			for (int i = 0; i < N; ++i)
+			{
+				int j;
+				for (j = 0; j < L - i - 1 && i < L; ++j)
+				{
+					Matrix[i, j] = 0.0f;
+				}
+
+				for (; j < L - 1; ++j)
+				{
+					Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
+				}
+
+				float mult = random.NextSingle();
+				Matrix[i, L - 1] = 20 * MathF.Max(mult, 0.8999f);
+			}
+		}
+
+		public void GenerateIllConditioned(Random random)
+		{
+			float[,] Lmat = new float[N, N];
+			float[,] Umat = new float[N, N];
+
+
+			for (int i = 0; i < N; ++i)
+			{
+				int lowerBound = 0;
+				int upperBound = (int)MathF.Ceiling(L / 2.0f);
+				for (int j = lowerBound; ;)
+				{
+					Lmat[i, j] = random.NextSingle() * 0.000123f;
+
+					if (i != j)
+						Umat[i, j] = random.NextSingle() * 0.000123f;
+
+					if (i >= L)
 					{
-						Matrix[i, j] = random.NextSingle() * random.NextInt64(-10, 10);
+						++j;
+						++lowerBound;
+						++upperBound;
 					}
 				}
 			}
+
+			Console.WriteLine(" U MATR");
+			Print(Umat);
+			Console.WriteLine(" L MATR");
+			Print(Lmat);
 		}
 
 		public float[] Multiply(float[] arr)
@@ -149,6 +200,22 @@ namespace NMLab2
 			}
 
 			return result;
+		}
+
+		public void Print(float[,] matrix)
+		{
+			int n = matrix.GetLength(0);
+			int l = matrix.GetLength(1);
+
+			for (int i = 0; i < n; ++i)
+			{
+				for (int j = 0; j < l; ++j)
+				{
+					Console.Write($"{matrix[i, j],15}");
+				}
+
+				Console.WriteLine();
+			}
 		}
 
 		public void Print()

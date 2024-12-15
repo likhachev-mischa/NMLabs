@@ -25,10 +25,11 @@ using NMLab2;
 Random random = new Random(42);
 
 LineMatrix matrix = new LineMatrix(4, 3);
-matrix.FillRandom(random);
+
+/*matrix.FillRandom(random);
 matrix.Print();
 
-float[] b = new float[] { 1.0f, 1.0f, 1.0f, 1.0f };
+float[] b = new float[] { 5.0f, 5.0f, 5.0f, 5.0f };
 float[] newf = matrix.Multiply(b);
 matrix.F = newf;
 var res = matrix.SolveFull();
@@ -37,6 +38,18 @@ foreach (var f in res)
 {
 	Console.Write(f + " ");
 }
+
+matrix.GenerateWellConditioned(random);
+newf = matrix.Multiply(b);
+matrix.F = newf;
+res = matrix.SolveFull();
+Console.WriteLine("RESULT: ");
+foreach (var f in res)
+{
+	Console.Write(f + " ");
+}*/
+
+matrix.GenerateIllConditioned(random);
 
 //for (int i = 1; i <= 2; ++i)
 //{
